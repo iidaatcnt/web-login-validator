@@ -202,7 +202,7 @@ export function detectSiteType(url: string): SiteType {
     const host = parsed.hostname.toLowerCase();
     const path = parsed.pathname.toLowerCase();
 
-    if (host.includes("panel.xserver.ne.jp")) {
+    if (host.includes("panel.xserver.ne.jp") || host.includes("secure.xserver.ne.jp")) {
       return "Xserverコントロールパネル";
     }
     if (host.includes("secure.sakura.ad.jp")) {

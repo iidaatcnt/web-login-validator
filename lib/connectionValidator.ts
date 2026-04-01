@@ -280,7 +280,7 @@ async function validateWordPressLogin(
   const formFields: Record<string, string> = {
     log: userId.trim(),
     pwd: password,
-    wp_submit: "ログイン",
+    "wp-submit": "ログイン",
     redirect_to: redirectTo || "wp-admin/",
     testcookie: "1",
   };

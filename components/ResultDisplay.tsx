@@ -322,6 +322,44 @@ export default function ResultDisplay({ result }: ResultDisplayProps) {
           </div>
         </div>
       )}
+
+      {/* Internal Copy Section */}
+      <div className="bg-gray-100 rounded-xl shadow-inner border border-gray-200 overflow-hidden mt-8 mb-8">
+        <div className="px-5 py-4 bg-gray-200 border-b border-gray-300 flex items-center justify-between">
+          <div className="pr-4">
+            <h3 className="text-sm font-bold text-gray-700">作業用レポート（情報控え）</h3>
+            <p className="text-[10px] text-gray-500 mt-0.5">※自分への記録用として、ここからは**パスワードを含めて**コピーできます</p>
+          </div>
+          <button
+            onClick={() => {
+              const text = `＜作業に必要な情報＞
+
+必要な情報a. ウェブサイトのアドレス
+ ${url.value}
+
+必要な情報b. レンタルサーバーの管理画面のログイン情報
+ ${siteType.includes("パネル") ? `管理画面のログイン　${url.value}\n ユーザーID：${userId.value}\n パスワード：${password.value}` : "（※別途入力）"}
+
+必要な情報c.  WordPressのダッシュボードのログイン情報
+ ${siteType === "WordPress管理画面" ? `ダッシュボードのログイン　${url.value}\n ユーザーID：${userId.value}\n パスワード：${password.value}` : "（※別途入力）"}
+
+必要な情報d. 不具合についてヒント情報があれば共有をお願いします
+ （ここに記入）
+`;
+              navigator.clipboard.writeText(text);
+              alert("レポートをコピーしました（パスワードを含みます）");
+            }}
+            className="px-4 py-2 bg-slate-700 text-white rounded shadow-sm text-sm hover:bg-black transition-colors whitespace-nowrap"
+          >
+            パスワードを含めてコピー
+          </button>
+        </div>
+        <div className="p-5">
+          <pre className="text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed py-2 italic font-sans">
+            {`＜作業に必要な情報＞\n\n必要な情報a. ウェブサイトのアドレス\n ${url.value}\n\n... (コピーボタンでパスワードを含む全情報がクリップボードに保存されます)`}
+          </pre>
+        </div>
+      </div>
     </div>
   );
 }
