@@ -186,14 +186,39 @@ async function validateWordPressLogin(
     };
   }
 
-  // Step 1: GET the login page
+  // Step 0: Establish session by visiting the home page first (WAF Bypass)
+  let cookies: string[] = [];
+  try {
+     const origin = new URL(wpLoginUrl).origin;
+     const homeResponse = await nodeRequest(origin, {
+       method: "GET",
+       headers: { "User-Agent": USER_AGENT },
+       rejectUnauthorized: false,
+     });
+     // Extract initial cookies
+     const homeCookies = homeResponse.headers["set-cookie"];
+     if (Array.isArray(homeCookies)) {
+       homeCookies.forEach(c => cookies.push(c.split(";")[0]));
+     } else if (typeof homeCookies === "string") {
+       cookies.push(homeCookies.split(";")[0]);
+     }
+  } catch {
+     // Ignore Home Page errors, we'll try login page anyway
+  }
+
+  // Step 1: Fetch the login page with cookies and Referer
   let getResponse: RawResponse;
   let sslWarning = false;
 
   try {
+    const origin = new URL(wpLoginUrl).origin;
     getResponse = await nodeRequest(wpLoginUrl, {
       method: "GET",
-      headers: { "User-Agent": USER_AGENT },
+      headers: { 
+        "User-Agent": USER_AGENT,
+        "Cookie": cookies.join("; "),
+        "Referer": origin + "/",
+      },
       rejectUnauthorized: false, // Accept self-signed certs
     });
 
@@ -291,17 +316,23 @@ async function validateWordPressLogin(
 
   // Extract cookies from GET response
   const setCookieHeader = getResponse.headers["set-cookie"];
-  const cookies: string[] = [];
   if (Array.isArray(setCookieHeader)) {
     setCookieHeader.forEach((c) => {
       const cookiePart = c.split(";")[0];
-      cookies.push(cookiePart);
+      if (!cookies.includes(cookiePart)) {
+        cookies.push(cookiePart);
+      }
     });
   } else if (typeof setCookieHeader === "string") {
-    cookies.push(setCookieHeader.split(";")[0]);
+    const cookiePart = setCookieHeader.split(";")[0];
+    if (!cookies.includes(cookiePart)) {
+      cookies.push(cookiePart);
+    }
   }
   // WordPress needs testcookie
-  cookies.push("wordpress_test_cookie=WP+Cookie+check");
+  if (!cookies.some(c => c.startsWith("wordpress_test_cookie="))) {
+    cookies.push("wordpress_test_cookie=WP%20Cookie%20check");
+  }
 
   // Step 2: POST credentials
   const formFields: Record<string, string> = {
