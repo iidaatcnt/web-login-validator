@@ -26,7 +26,7 @@ export default function Home() {
           fetch("/api/validate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data.wp),
+            body: JSON.stringify({ ...data.wp, category: "wp" }),
           }).then(async (res) => {
             if (!res.ok) throw new Error("WordPressの検証中にエラーが発生しました");
             return { type: "wp", data: await res.json() };
@@ -40,7 +40,7 @@ export default function Home() {
           fetch("/api/validate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data.server),
+            body: JSON.stringify({ ...data.server, category: "server" }),
           }).then(async (res) => {
             if (!res.ok) throw new Error("サーバー情報の検証中にエラーが発生しました");
             return { type: "server", data: await res.json() };

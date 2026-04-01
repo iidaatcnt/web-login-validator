@@ -10,6 +10,7 @@ import * as http from "http";
 // ============================================================
 
 const TIMEOUT_MS = 10_000;
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
 
 /**
  * Build a fetch-compatible RequestInit with a timeout signal.
@@ -192,8 +193,36 @@ async function validateWordPressLogin(
   try {
     getResponse = await nodeRequest(wpLoginUrl, {
       method: "GET",
-      rejectUnauthorized: false,
+      headers: { "User-Agent": USER_AGENT },
+      rejectUnauthorized: false, // Accept self-signed certs
     });
+
+    // Redirect handling: if we were redirected, update our login URL
+    if (getResponse.headers["location"]) {
+      wpLoginUrl = new URL(getResponse.headers["location"] as string, wpLoginUrl).href;
+    }
+
+    let loginPageHtml = getResponse.body;
+
+    // AUTO-DISCOVERY: If this doesn't look like a login page, try appending /wp-admin/
+    if (!loginPageHtml.includes("user_login") && !loginPageHtml.includes("pwd")) {
+      const fallbackUrl = wpLoginUrl.endsWith("/") ? wpLoginUrl + "wp-admin/" : wpLoginUrl + "/wp-admin/";
+      try {
+        const fallbackResponse = await nodeRequest(fallbackUrl, {
+          method: "GET",
+          headers: { "User-Agent": USER_AGENT },
+          rejectUnauthorized: false,
+        });
+        // If the fallback (wp-admin) looks more like a login page, use it
+        if (fallbackResponse.body.includes("user_login") || fallbackResponse.body.includes("pwd")) {
+          wpLoginUrl = fallbackUrl;
+          loginPageHtml = fallbackResponse.body;
+          getResponse = fallbackResponse;
+        }
+      } catch {
+         // Ignore fallback errors, we'll proceed with original or fail later
+      }
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return {
