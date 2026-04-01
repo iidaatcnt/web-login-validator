@@ -219,6 +219,9 @@ async function validateWordPressLogin(
      // Ignore Home Page errors, we'll try login page anyway
   }
 
+  // HUMAN WAIT: Sleep for 1.2 seconds to mimic human interaction
+  await new Promise(resolve => setTimeout(resolve, 1200));
+
   // Step 1: Fetch the login page with cookies and Referer
   let getResponse: RawResponse;
   let sslWarning = false;
