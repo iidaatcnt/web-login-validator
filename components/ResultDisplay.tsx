@@ -151,9 +151,14 @@ export default function ResultDisplay({ result }: ResultDisplayProps) {
     formattedSummary,
   } = result;
 
+  const [showClearTextSummary, setShowClearTextSummary] = useState(false);
+
   const maskedPassword = password.value
     ? "*".repeat(Math.min(password.value.length, 12))
     : "";
+
+  // Generate a clear-text version of the formatted summary
+  const clearTextSummary = formattedSummary.replace(/\*{4,}/g, password.value || "");
 
   const loginStatus = connectionStatusLabel(connection.loginStatus);
 
@@ -288,16 +293,28 @@ export default function ResultDisplay({ result }: ResultDisplayProps) {
         </div>
       </div>
 
-      {/* Formatted summary (monospace, copyable) */}
+      {/* Text Formatted Summary */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">
-            テキスト形式サマリー
-          </h3>
-          <CopyButton text={formattedSummary} label="サマリーをコピー" />
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-semibold text-gray-700">テキスト形式サマリー</h3>
+            <label className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-200 px-2 py-1 rounded cursor-pointer hover:bg-gray-300 transition-colors">
+              <input
+                type="checkbox"
+                checked={showClearTextSummary}
+                onChange={(e) => setShowClearTextSummary(e.target.checked)}
+                className="w-3.5 h-3.5"
+              />
+              <span>パスワードを表示してコピーする</span>
+            </label>
+          </div>
+          <CopyButton 
+            text={showClearTextSummary ? clearTextSummary : formattedSummary} 
+            label="サマリーをコピー" 
+          />
         </div>
         <pre className="p-5 text-xs font-mono text-gray-800 whitespace-pre-wrap overflow-x-auto leading-relaxed">
-          {formattedSummary}
+          {showClearTextSummary ? clearTextSummary : formattedSummary}
         </pre>
       </div>
 
