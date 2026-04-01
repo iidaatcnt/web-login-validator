@@ -169,27 +169,19 @@ async function validateWordPressLogin(
   userId: string,
   password: string
 ): Promise<ConnectionResult> {
-  // Normalize: ensure URL points to wp-login.php
-  let wpLoginUrl: string;
+  // Use the provided URL directly first. 
+  // We trust that the client might be providing a custom login URL.
+  let wpLoginUrl = loginUrl;
+  
+  // Basic validation of URL structure
   try {
-    const parsed = new URL(loginUrl);
-    if (parsed.pathname.includes("wp-login.php")) {
-      wpLoginUrl = loginUrl;
-    } else if (parsed.pathname.includes("wp-admin")) {
-      // wp-admin usually redirects to wp-login.php; construct it directly
-      wpLoginUrl =
-        parsed.origin +
-        parsed.pathname.replace(/\/wp-admin.*$/, "") +
-        "/wp-login.php";
-    } else {
-      wpLoginUrl = loginUrl;
-    }
+    new URL(loginUrl);
   } catch {
     return {
       reachable: false,
       sslWarning: false,
       loginStatus: "URL_NOT_FOUND",
-      detail: "URLのパース中にエラーが発生しました",
+      detail: "URLの形式が正しくありません",
     };
   }
 
@@ -242,20 +234,26 @@ async function validateWordPressLogin(
 
   const loginPageHtml = getResponse.body;
 
-  // Verify it's actually a WordPress login page
+  // Verify it's actually a WordPress login page 
+  // We check for "wp-login", various form fields, or standard WP strings
   const isWpLogin =
     loginPageHtml.includes("wp-login") ||
     loginPageHtml.includes("user_login") ||
-    loginPageHtml.includes("loginform");
+    loginPageHtml.includes("loginform") ||
+    loginPageHtml.includes("wp-content") ||
+    loginPageHtml.includes("WordPress");
 
   if (!isWpLogin) {
-    return {
-      reachable: true,
-      sslWarning,
-      loginStatus: "LOGIN_PAGE_NOT_FOUND",
-      detail:
-        "WordPressのログインページが確認できませんでした（ページ内容が想定と異なります）",
-    };
+    // If not obviously WP, we still try if the URL was explicitly provided as a custom login
+    // but we show a warning if it doesn't look like a login form.
+    if (!loginPageHtml.includes("password") && !loginPageHtml.includes("pwd")) {
+       return {
+         reachable: true,
+         sslWarning,
+         loginStatus: "LOGIN_PAGE_NOT_FOUND",
+         detail: "指定されたURLにログインフォームが見つかりませんでした。URLが正しいか確認してください",
+       };
+    }
   }
 
   // Extract form fields
@@ -323,19 +321,69 @@ async function validateWordPressLogin(
   const location =
     (postResponse.headers["location"] as string) || "";
   const responseBody = postResponse.body;
+  const resCookies = postResponse.headers["set-cookie"];
+  const isRedirectToAdmin = location.includes("wp-admin");
+  const hasLoggedInCookie = (Array.isArray(resCookies) ? resCookies.join(" ") : (resCookies || "")).includes("wordpress_logged_in");
 
-  // Success: redirect to wp-admin
-  if (
-    postResponse.status >= 300 &&
-    postResponse.status < 400 &&
-    location.includes("wp-admin")
-  ) {
-    return {
-      reachable: true,
-      sslWarning,
-      loginStatus: "LOGIN_SUCCESS",
-      detail: "WordPressへのログインに成功しました",
-    };
+  // Success Indicators: 
+  // 1. Redirect to wp-admin
+  // 2. Issuance of wordpress_logged_in cookie
+  if ((postResponse.status >= 300 && postResponse.status < 400 && isRedirectToAdmin) || hasLoggedInCookie) {
+    // Step 4: Verify Administrator Privileges (Follow-up check)
+    try {
+      const adminUrl = new URL(wpLoginUrl).origin + "/wp-admin/";
+      const dashboardResponse = await nodeRequest(adminUrl, {
+        method: "GET",
+        headers: {
+          "Cookie": [...cookies, ...extractResCookies(resCookies)].join("; "),
+          "Referer": wpLoginUrl,
+        },
+        rejectUnauthorized: false,
+      });
+
+      const dashboardHtml = dashboardResponse.body;
+      // Administrator check: Look for "Plugins" or "Settings" menus which are admin-only
+      const isAdmin =
+        dashboardHtml.includes("id=\"menu-plugins\"") ||
+        dashboardHtml.includes("id=\"menu-settings\"") ||
+        dashboardHtml.includes("id=\"menu-users\"") ||
+        dashboardHtml.includes("id=\"menu-appearance\"");
+
+      if (isAdmin) {
+        return {
+          reachable: true,
+          sslWarning,
+          loginStatus: "LOGIN_SUCCESS",
+          detail: "WordPressへのログインに成功しました（管理者権限を確認済み）",
+        };
+      } else {
+        return {
+          reachable: true,
+          sslWarning,
+          loginStatus: "AUTH_FAILED",
+          detail: "ログインには成功しましたが、管理者権限がありません。情報の昇格をご依頼ください",
+        };
+      }
+    } catch {
+      // If privilege check fails but login worked, return basic success
+      return {
+        reachable: true,
+        sslWarning,
+        loginStatus: "LOGIN_SUCCESS",
+        detail: "WordPressへのログインに成功しました（権限確認はスキップされました）",
+      };
+    }
+  }
+
+  // Helper inside validateWordPressLogin to extract cookies from POST
+  function extractResCookies(header: string | string[] | undefined): string[] {
+    const list: string[] = [];
+    if (Array.isArray(header)) {
+      header.forEach(c => list.push(c.split(";")[0]));
+    } else if (typeof header === "string") {
+      list.push(header.split(";")[0]);
+    }
+    return list;
   }
 
   // Check for 2FA / MFA indicators in response body
