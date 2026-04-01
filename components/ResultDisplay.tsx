@@ -151,7 +151,7 @@ export default function ResultDisplay({ result }: ResultDisplayProps) {
     formattedSummary,
   } = result;
 
-  const [showClearTextSummary, setShowClearTextSummary] = useState(false);
+  const [showClearTextSummary, setShowClearTextSummary] = useState(true);
 
   const maskedPassword = password.value
     ? "*".repeat(Math.min(password.value.length, 12))
