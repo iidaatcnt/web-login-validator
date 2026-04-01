@@ -2,132 +2,175 @@
 
 import { useState } from "react";
 
+export interface LoginData {
+  url: string;
+  userId: string;
+  password: string;
+}
+
 interface LoginFormProps {
-  onSubmit: (data: {
-    url: string;
-    userId: string;
-    password: string;
-  }) => Promise<void>;
+  onSubmit: (data: { wp: LoginData; server: LoginData }) => void;
   isLoading: boolean;
 }
 
 export default function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
-  const [url, setUrl] = useState("");
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [wp, setWp] = useState<LoginData>({ url: "", userId: "", password: "" });
+  const [server, setServer] = useState<LoginData>({ url: "", userId: "", password: "" });
+  const [showWpPass, setShowWpPass] = useState(false);
+  const [showServerPass, setShowServerPass] = useState(false);
 
-  // Suggest https:// if user tabs out of URL field without a scheme
-  const handleUrlBlur = () => {
-    if (url && !/^https?:\/\//i.test(url)) {
-      const domain = url.trim();
-      if (/^[\w.-]+\.\w+/.test(domain)) {
-        setUrl(`https://${domain}`);
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit({ url, userId, password });
+    onSubmit({ wp, server });
   };
-
-  const inputClass =
-    "w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors bg-white text-gray-900 placeholder-gray-400";
-
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1";
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-base font-semibold text-gray-800 mb-5">
-        ログイン情報を入力
-      </h2>
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden"
+    >
+      <div className="p-8 space-y-10">
+        <h2 className="text-xl font-bold text-gray-800 border-b pb-4">
+          情報の入力
+        </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* URL */}
-        <div>
-          <label htmlFor="url" className={labelClass}>
-            ログインURL
-            <span className="ml-1 text-red-500">*</span>
-          </label>
-          <input
-            id="url"
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onBlur={handleUrlBlur}
-            placeholder="https://example.com/wp-admin"
-            className={inputClass}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="mt-1 text-xs text-gray-400">
-            http:// または https:// から始まるURLを入力してください
-          </p>
+        {/* Section 1: WordPress */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+              1
+            </span>
+            <h3 className="font-bold text-gray-800">
+              WordPressのログイン情報
+            </h3>
+          </div>
+          
+          <div className="grid gap-6 pl-11">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
+                ダッシュボードのログインURL
+              </label>
+              <input
+                type="text"
+                value={wp.url}
+                onChange={(e) => setWp({ ...wp, url: e.target.value })}
+                placeholder="https://○○/wp-admin/"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm text-gray-900"
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
+                  ユーザーID
+                </label>
+                <input
+                  type="text"
+                  value={wp.userId}
+                  onChange={(e) => setWp({ ...wp, userId: e.target.value })}
+                  placeholder="ユーザー名を入力"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm text-gray-900"
+                />
+              </div>
+              <div className="space-y-1 relative">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
+                  パスワード
+                </label>
+                <div className="relative">
+                  <input
+                    type={showWpPass ? "text" : "password"}
+                    value={wp.password}
+                    onChange={(e) => setWp({ ...wp, password: e.target.value })}
+                    placeholder="パスワードを入力"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm pr-20 text-gray-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowWpPass(!showWpPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest bg-white px-2 py-1 rounded"
+                  >
+                    {showWpPass ? "隠す" : "表示"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* User ID */}
-        <div>
-          <label htmlFor="userId" className={labelClass}>
-            ユーザID
-            <span className="ml-1 text-red-500">*</span>
-          </label>
-          <input
-            id="userId"
-            type="text"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            placeholder="admin"
-            className={inputClass}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </div>
-
-        {/* Password */}
-        <div>
-          <label htmlFor="password" className={labelClass}>
-            パスワード
-            <span className="ml-1 text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="パスワードを入力"
-              className={`${inputClass} pr-20`}
-              autoComplete="new-password"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-              tabIndex={-1}
-            >
-              {showPassword ? "隠す" : "表示"}
-            </button>
+        {/* Section 2: Server Panel */}
+        <div className="space-y-6 pt-6 border-t border-gray-100">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm">
+              2
+            </span>
+            <h3 className="font-bold text-gray-800">
+              レンタルサーバーの管理画面
+            </h3>
+          </div>
+          
+          <div className="grid gap-6 pl-11">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
+                管理画面のログインURL
+              </label>
+              <input
+                type="text"
+                value={server.url}
+                onChange={(e) => setServer({ ...server, url: e.target.value })}
+                placeholder="https://panel.xserver.ne.jp/"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm text-gray-900"
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
+                  ユーザーID
+                </label>
+                <input
+                  type="text"
+                  value={server.userId}
+                  onChange={(e) => setServer({ ...server, userId: e.target.value })}
+                  placeholder="ユーザーIDを入力"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm text-gray-900"
+                />
+              </div>
+              <div className="space-y-1 relative">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
+                  パスワード
+                </label>
+                <div className="relative">
+                  <input
+                    type={showServerPass ? "text" : "password"}
+                    value={server.password}
+                    onChange={(e) => setServer({ ...server, password: e.target.value })}
+                    placeholder="パスワードを入力"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm pr-20 text-gray-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowServerPass(!showServerPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest bg-white px-2 py-1 rounded"
+                  >
+                    {showServerPass ? "隠す" : "表示"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Submit */}
-        <button
-          type="submit"
-          disabled={isLoading || !url || !userId || !password}
-          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              検証中...
-            </>
-          ) : (
-            "ログイン情報を検証する"
-          )}
-        </button>
-      </form>
-    </div>
+        <div className="pt-6">
+          <button
+            type="submit"
+            disabled={isLoading || (!wp.url && !server.url)}
+            className="w-full bg-blue-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+          >
+            {isLoading ? "一括検証中..." : "ログイン情報を検証する"}
+          </button>
+        </div>
+      </div>
+    </form>
   );
 }
