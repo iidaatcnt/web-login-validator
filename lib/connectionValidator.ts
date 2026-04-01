@@ -199,11 +199,20 @@ async function validateWordPressLogin(
     };
   }
 
-  // Step 0: Establish session by visiting the home page first (WAF Bypass)
+  // Step 0: Establish session by visiting the site root first (WAF Bypass)
   let cookies: string[] = [];
+  // Correctly identify the "Base URL" of the site up to the last slash
+  let siteBaseUrl: string;
   try {
-     const origin = new URL(wpLoginUrl).origin;
-     const homeResponse = await nodeRequest(origin, {
+     const parsed = new URL(wpLoginUrl);
+     const lastSlashIdx = parsed.href.lastIndexOf('/');
+     siteBaseUrl = parsed.href.substring(0, lastSlashIdx + 1);
+  } catch {
+     siteBaseUrl = wpLoginUrl; // Fallback
+  }
+
+  try {
+     const homeResponse = await nodeRequest(siteBaseUrl, {
        method: "GET",
        headers: { "User-Agent": USER_AGENT },
        rejectUnauthorized: false,
@@ -227,13 +236,12 @@ async function validateWordPressLogin(
   let sslWarning = false;
 
   try {
-    const origin = new URL(wpLoginUrl).origin;
     getResponse = await nodeRequest(wpLoginUrl, {
       method: "GET",
       headers: { 
         "User-Agent": USER_AGENT,
         "Cookie": cookies.join("; "),
-        "Referer": origin + "/",
+        "Referer": siteBaseUrl,
       },
       rejectUnauthorized: false, // Accept self-signed certs
     });
